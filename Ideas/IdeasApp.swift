@@ -1,17 +1,12 @@
-//
-//  IdeasApp.swift
-//  Ideas
-//
-//  Created by macOS on 08/10/26.
-//
-
 import SwiftUI
+import SwiftData
 
 @main
 struct IdeasApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            IdeaListView()
         }
+        .modelContainer(for: [Idea.self, Step.self])
     }
 }
