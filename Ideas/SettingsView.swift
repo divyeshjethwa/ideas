@@ -1,14 +1,29 @@
 import SwiftUI
+import SwiftData
 import UIKit
+import UniformTypeIdentifiers
 
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var context
+    @Query private var ideas: [Idea]
+
     @AppStorage(AIService.providerKey) private var selectedProvider = AIProvider.groq.rawValue
     @State private var refreshID = UUID()
+
+    @State private var exportDocument: IdeasBackupDocument?
+    @State private var showingExporter = false
+    @State private var showingImporter = false
+    @State private var backupMessage: String?
+
+    private var backupFilename: String {
+        "Ideas Backup " + Date.now.formatted(.iso8601.year().month().day())
+    }
 
     var body: some View {
         NavigationStack {
             Form {
+                // MARK: AI
                 Section {
                     Picker("Use", selection: $selectedProvider) {
                         ForEach(AIProvider.allCases) { provider in
@@ -31,6 +46,26 @@ struct SettingsView: View {
                     }
                 }
                 .id(refreshID)
+
+                // MARK: Backup
+                Section {
+                    Button {
+                        exportBackup()
+                    } label: {
+                        Label("Export backup", systemImage: "square.and.arrow.up")
+                    }
+                    .disabled(ideas.isEmpty)
+
+                    Button {
+                        showingImporter = true
+                    } label: {
+                        Label("Import backup", systemImage: "square.and.arrow.down")
+                    }
+                } header: {
+                    Text("Backup")
+                } footer: {
+                    Text(backupMessage ?? "Saves all your ideas and steps as a file in Files or iCloud Drive. Importing adds ideas back and skips ones you already have.")
+                }
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
@@ -40,9 +75,53 @@ struct SettingsView: View {
                     Button("Done") { dismiss() }
                 }
             }
+            .fileExporter(
+                isPresented: $showingExporter,
+                document: exportDocument,
+                contentType: .json,
+                defaultFilename: backupFilename
+            ) { result in
+                switch result {
+                case .success:
+                    backupMessage = "Backup saved ✅ (\(ideas.count) ideas)"
+                case .failure(let error):
+                    backupMessage = "Export failed: \(error.localizedDescription)"
+                }
+            }
+            .fileImporter(
+                isPresented: $showingImporter,
+                allowedContentTypes: [.json]
+            ) { result in
+                switch result {
+                case .success(let url):
+                    do {
+                        let outcome = try BackupService.restore(from: url, into: context, existing: ideas)
+                        var text = "Imported \(outcome.added) ideas"
+                        if outcome.skipped > 0 {
+                            text += ", skipped \(outcome.skipped) you already had"
+                        }
+                        backupMessage = text + " ✅"
+                    } catch {
+                        backupMessage = "Couldn't read that file. Make sure it's an Ideas backup."
+                    }
+                case .failure(let error):
+                    backupMessage = "Import failed: \(error.localizedDescription)"
+                }
+            }
+        }
+    }
+
+    private func exportBackup() {
+        do {
+            exportDocument = IdeasBackupDocument(data: try BackupService.export(ideas))
+            showingExporter = true
+        } catch {
+            backupMessage = "Export failed: \(error.localizedDescription)"
         }
     }
 }
+
+// MARK: - Provider list row
 
 private struct ProviderRow: View {
     let provider: AIProvider
@@ -64,6 +143,8 @@ private struct ProviderRow: View {
         }
     }
 }
+
+// MARK: - Provider detail (Get key / Paste key / Model)
 
 private struct ProviderDetailView: View {
     let provider: AIProvider
@@ -118,6 +199,7 @@ private struct ProviderDetailView: View {
         }
         .navigationTitle(provider.displayName)
         .navigationBarTitleDisplayMode(.inline)
+        .keyboardDoneButton()
         .onAppear {
             isConnected = KeychainStore.read(provider.rawValue) != nil
             model = UserDefaults.standard.string(forKey: AIService.modelKey(provider)) ?? ""
