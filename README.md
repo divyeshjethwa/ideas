@@ -5,10 +5,14 @@ A simple iOS app for capturing app ideas and actually moving them forward.
 Write an idea down, break it into steps, tick them off, and let AI suggest what to do next.
 
 <p align="center">
-  <img src="screenshot.png" alt="Idea list" width="200">
-  <img src="screenshot-steps.png" alt="Steps and progress" width="200">
-  <img src="screenshot-status.png" alt="Status picker" width="200">
-  <img src="screenshot-ai.png" alt="AI suggested steps" width="200">
+  <img src="screenshot.png" alt="Idea list" width="380">
+  &nbsp;&nbsp;
+  <img src="screenshot-steps.png" alt="Steps and progress" width="380">
+</p>
+<p align="center">
+  <img src="screenshot-status.png" alt="Status picker" width="380">
+  &nbsp;&nbsp;
+  <img src="screenshot-ai.png" alt="AI suggested steps" width="380">
 </p>
 
 ## Features
